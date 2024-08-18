@@ -51,7 +51,7 @@ public class Chunk
 		
 		_rawTexture = new NativeArray<float>(total*4,Allocator.Persistent);
 		didUpdateThisFrame = true;
-		var bg = Random.ColorHSV(0f, 1f, 0f, 0.2f, 0.0f, 0.2f);
+		var bg = Color.Lerp(Color.black,Color.white, 0.1f);
 		_bg = new float4(bg.r, bg.g, bg.b, bg.a);
 	}
 	
@@ -116,16 +116,22 @@ public class Chunk
 					RawTexture[i * 4 + 3] = Background.w;
 					break;
 				case Pixel.Solid:
-					RawTexture[i * 4] = 0;
-					RawTexture[i * 4 + 1] = 0;
-					RawTexture[i * 4 + 2] = 0;
+					RawTexture[i * 4] = 1;
+					RawTexture[i * 4 + 1] = 1;
+					RawTexture[i * 4 + 2] = 1;
 					RawTexture[i * 4 + 3] = 1f;
 					break;
 				case Pixel.Sand:
 					RawTexture[i * 4] = Color.yellow.r;
 					RawTexture[i * 4 + 1] = Color.yellow.g;
 					RawTexture[i * 4 + 2] = Color.yellow.b;
-					RawTexture[i * 4 + 3] = Color.yellow.a;
+					RawTexture[i * 4 + 3] = 1f;
+					break;
+				case Pixel.Water:
+					RawTexture[i * 4] = Color.blue.r;
+					RawTexture[i * 4 + 1] = Color.blue.g;
+					RawTexture[i * 4 + 2] = Color.blue.b;
+					RawTexture[i * 4 + 3] = 1f;
 					break;
 			}
 		}

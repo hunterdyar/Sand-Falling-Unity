@@ -26,9 +26,13 @@ namespace Scripts
 		public NativeArray<Pixel> Pixels => _pixels;
 
 		private NativeArray<Pixel> _pixels;
-		
+
+		private Pixel[] _pixelsBrush = new[] { Pixel.Sand, Pixel.Water , Pixel.Solid};
+		private int _brushIndex;
+
 		//run physics
 		private SandPhysics _physics;
+
 		//render the output.
 		private VisualElement _renderContainer;
 
@@ -41,9 +45,10 @@ namespace Scripts
 		private void Start()
 		{
 			_chunks = new Dictionary<int2, Chunk>();
-			_pixels = new NativeArray<Pixel>(_chunksWide*pixelChunkSize*_chunksTall*pixelChunkSize, Allocator.Persistent);
-			_width = _chunksWide*pixelChunkSize;
-			_height = _chunksTall*pixelChunkSize;
+			_pixels = new NativeArray<Pixel>(_chunksWide * pixelChunkSize * _chunksTall * pixelChunkSize,
+				Allocator.Persistent);
+			_width = _chunksWide * pixelChunkSize;
+			_height = _chunksTall * pixelChunkSize;
 			for (int x = 0; x < _chunksWide; x++)
 			{
 				for (int y = 0; y < _chunksTall; y++)
@@ -64,10 +69,11 @@ namespace Scripts
 					{
 						Debug.LogError("fuck");
 					}
-					var chunk = new Chunk(this, o,id,pixelChunkSize, pixelChunkSize,x,y);
+
+					var chunk = new Chunk(this, o, id, pixelChunkSize, pixelChunkSize, x, y);
 					chunk.VisualElement = e;
-					_chunks.Add(new int2(x, y),chunk);
-					
+					_chunks.Add(new int2(x, y), chunk);
+
 					//apply texture as background image to chunk. Texture is a reference, so this will just update.
 					e.style.backgroundImage = Background.FromTexture2D(chunk.Texture);
 					_renderContainer.Add(e);
@@ -75,76 +81,89 @@ namespace Scripts
 			}
 
 			_physics = new SandPhysics(this);
-
 		}
 
 		private void FixedUpdate()
 		{
-			//finish the last frame if it's not finished yet.
 		}
-		
+
 		private void Update()
 		{
+			//move to lateUpdate or Fixed, or whatever we want the frequency to be. 'as fast as possible' is nice for testing FPS tho.
 			RunWorldPhysics();
-			 if (Input.GetMouseButton(0))
-			 {
-			 	var x = Mathf.FloorToInt(Input.mousePosition.x);
-			 	var y = Mathf.FloorToInt(Screen.height-Input.mousePosition.y);
-			    x = Mathf.Clamp(x, 0, _width);
-			    y = Mathf.Clamp(y, 0, _height);
-			    var chunk = GetChunkFromPixel(x, y);
-			    if (chunk != null)
-			    {
-				    int2 cp = new int2(Mathf.FloorToInt(x -(chunk.Index.x*pixelChunkSize)), Mathf.FloorToInt(y -(chunk.Index.y*pixelChunkSize)));
-				    SetPixel(chunk.Offset+(cp.y*pixelChunkSize+cp.x), Pixel.Sand);
-				    chunk.SetDidUpdate();
-			    }
-			 }
+			
+			if (Input.GetMouseButtonDown(1))
+			{
+				_brushIndex++;
+				if (_brushIndex >= _pixelsBrush.Length)
+				{
+					_brushIndex = 0;
+				}
 
-			 List<JobHandle> handles = new List<JobHandle>();
-			 //setup the visual loops.
-			 foreach (var chunk in _chunks.Values)
-			 {
-				 if (chunk.didUpdateThisFrame)
-				 {
-					 chunk.VisualElement.style.unityBackgroundImageTintColor = Color.white;
-				 }
-				 else
-				 {
-					 chunk.VisualElement.style.unityBackgroundImageTintColor = Color.gray;
-				 }
-				 
-				 if (chunk.didUpdateThisFrame)
-				 {
-					 var j = chunk.GetTextureJob();
-					 var handle = j.Schedule(pixelChunkSize*pixelChunkSize,256);
-					 handles.Add(handle);
-				 }
-				 
-			 }
-			 
-			 //wait for one to complete. The rest will complete in about the same time, we'll wait for them all.
-			 //if nothing updates, handles will be empty
-			 foreach (var handle in handles)
-			 {
-				 handle.Complete();
-			 }
+				Debug.Log($"Brush: {_pixelsBrush[_brushIndex]}");
+			}
 
-			 //this resets didupdateThisFrame to false.
-			 foreach (var chunk in _chunks.Values)
-			 {
-				 chunk.AfterTextureJob();
-			 }
+			if (Input.GetMouseButton(0))
+			{
+				var x = Mathf.FloorToInt(Input.mousePosition.x);
+				var y = Mathf.FloorToInt(Screen.height - Input.mousePosition.y);
+				x = Mathf.Clamp(x, 0, _width);
+				y = Mathf.Clamp(y, 0, _height);
+				var chunk = GetChunkFromPixel(x, y);
+				if (chunk != null)
+				{
+					int2 cp = new int2(Mathf.FloorToInt(x - (chunk.Index.x * pixelChunkSize)),
+						Mathf.FloorToInt(y - (chunk.Index.y * pixelChunkSize)));
+
+					var pixel = _pixelsBrush[_brushIndex];
+					SetPixel(chunk.Offset + (cp.y * pixelChunkSize + cp.x), pixel);
+					chunk.SetDidUpdate();
+				}
+			}
+
+			List<JobHandle> handles = new List<JobHandle>();
+			//setup the visual loops.
+			foreach (var chunk in _chunks.Values)
+			{
+				if (chunk.didUpdateThisFrame)
+				{
+					chunk.VisualElement.style.unityBackgroundImageTintColor = Color.white;
+				}
+				else
+				{
+					chunk.VisualElement.style.unityBackgroundImageTintColor = Color.gray;
+				}
+
+				if (chunk.didUpdateThisFrame)
+				{
+					var j = chunk.GetTextureJob();
+					var handle = j.Schedule(pixelChunkSize * pixelChunkSize, 256);
+					handles.Add(handle);
+				}
+			}
+
+			//wait for one to complete. The rest will complete in about the same time, we'll wait for them all.
+			//if nothing updates, handles will be empty
+			foreach (var handle in handles)
+			{
+				handle.Complete();
+			}
+
+			//this resets didupdateThisFrame to false.
+			foreach (var chunk in _chunks.Values)
+			{
+				chunk.AfterTextureJob();
+			}
 		}
 
-		private void SetPixel(int i, Pixel sand)
+		private void SetPixel(int i, Pixel pixel)
 		{
-			_pixels[i] = sand;
+			_pixels[i] = pixel;
 		}
 
 		private Chunk GetChunkFromPixel(int x, int y)
 		{
-			int2 xc = new int2(Mathf.FloorToInt(x / pixelChunkSize),Mathf.FloorToInt(y/pixelChunkSize));
+			int2 xc = new int2(Mathf.FloorToInt(x / pixelChunkSize), Mathf.FloorToInt(y / pixelChunkSize));
 			return _chunks.GetValueOrDefault(xc);
 		}
 
@@ -153,7 +172,6 @@ namespace Scripts
 			//do physics step on world.
 			if (!_physics.Running)
 			{
-				
 			}
 
 			_physics.StepPhysicsAll();
@@ -167,6 +185,7 @@ namespace Scripts
 			{
 				chunk.Dispose();
 			}
+
 			_physics.Dispose();
 		}
 	}

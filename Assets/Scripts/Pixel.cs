@@ -2,5 +2,6 @@
 {
 	Empty,
 	Solid,
-	Sand
+	Sand,
+	Water
 }

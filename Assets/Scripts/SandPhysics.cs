@@ -159,29 +159,30 @@ namespace Scripts
 				for (int y = 0; y < ChunkHeight; y++)
 				{
 					int index = ChunkDataOffset+(ChunkWidth*y+x);
-					if ( WorldPixels[index] == Pixel.Sand && !UpdatedThisTick.TestAny(index))// && Updated.TestNone(i)
+					if (!UpdatedThisTick.TestAny(index))
 					{
-						if (MoveIfEmpty(index,x,y, 0, 1))
+						if (WorldPixels[index] == Pixel.Sand) // && Updated.TestNone(i)
 						{
-							continue;
+							if (MoveIfEmpty(index, x, y, 0, 1)) continue;
+							// try down left.
+							if (MoveIfEmpty(index, x, y, -1, 1)) continue;
+							//try down right.
+							if (MoveIfEmpty(index, x, y, 1, 1)) continue;
+						}else if (WorldPixels[index] == Pixel.Water) // && Updated.TestNone(i)
+						{
+							if (MoveIfEmpty(index, x, y, 0, 1)) continue;
+							// try left.
+							if (MoveIfEmpty(index, x, y, -1, 0)) continue;
+							//try right.
+							if (MoveIfEmpty(index, x, y, 1, 0)) continue;
 						}
-						
-						// try down left.
-						 if (MoveIfEmpty(index,x,y, -1, 1))
-						 {
-						 	continue;
-						 }
-						
-						 //try down right.
-						 if (MoveIfEmpty(index, x,y,1, 1))
-						 {
-						 	continue;
-						 }
 					}
 				}
 			}
 		}
 
+		
+		//todo: control the movement conditions without uneccesary repetative calls.
 		private bool MoveIfEmpty(int gi,int x, int y, int dx, int dy)
 		{
 			int ncid = ChunkID;
@@ -250,8 +251,8 @@ namespace Scripts
 				UpdatedThisTick.Set(next,true);
 				//not neccesary, because a for loop will never check i twice.... EXCEPT using it for a single pixel that falls into next.
 				UpdatedThisTick.Set(gi,true);
-
-				WorldPixels[next] = Pixel.Sand;
+				//swap
+				WorldPixels[next] = WorldPixels[gi];
 				WorldPixels[gi] = Pixel.Empty;
 				return true;
 			}
