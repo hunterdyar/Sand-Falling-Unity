@@ -24,8 +24,11 @@ public class Chunk
 	private int _offset;
 	private int _totalWidth;
 	public int Height => _height;
+	public bool NeedsUpdatePhysics = true;
+	private bool _physicsUpdatedLastTick;
 	public VisualElement VisualElement { get; set; }
 
+	public int ID;
 	public int2 Index;
 	private int _height;
 	private float4 _bg;
@@ -33,8 +36,9 @@ public class Chunk
 
 	public bool didUpdateThisFrame;
 	public FallingSand World;
-	public Chunk(FallingSand world,int offset, int w, int h, int indexX, int indexY)
+	public Chunk(FallingSand world,int offset, int id,int w, int h, int indexX, int indexY)
 	{
+		this.ID = id;
 		this._offset = offset;
 		this.World = world;
 		_width = w;
@@ -47,17 +51,14 @@ public class Chunk
 		
 		_rawTexture = new NativeArray<float>(total*4,Allocator.Persistent);
 		didUpdateThisFrame = true;
-		var bg = Random.ColorHSV();
+		var bg = Random.ColorHSV(0f, 1f, 0f, 0.2f, 0.0f, 0.2f);
 		_bg = new float4(bg.r, bg.g, bg.b, bg.a);
 	}
-
-	public Pixel GetPixel(int x, int y)
-	{
-		return World.Pixels[_width * (y+_width*Index.y) + (x+(_height*Index.x))];
-	}
+	
 	public void SetDidUpdate()
 	{
-		didUpdateThisFrame = true;
+		didUpdateThisFrame = true;//force to draw
+		NeedsUpdatePhysics = true;//force to wake up physics
 	}
 	
 	public SetTextureDataJob GetTextureJob()
@@ -81,9 +82,7 @@ public class Chunk
 		}
 
 		didUpdateThisFrame = false;
-
 	}
-	
 	
 	public void Dispose()
 	{
@@ -134,6 +133,18 @@ public class Chunk
 
 	public void UpdatedPhysics(bool resultDidUpdate)
 	{
-		didUpdateThisFrame = didUpdateThisFrame || resultDidUpdate;
+		//if we didn't change last frame and we didn't change this frame; go to sleep
+		if (!didUpdateThisFrame && !resultDidUpdate && !_physicsUpdatedLastTick)
+		{
+			NeedsUpdatePhysics = false;
+		}
+		else
+		{
+			NeedsUpdatePhysics = true;
+		}
+
+		_physicsUpdatedLastTick = resultDidUpdate;
+		
+		didUpdateThisFrame = didUpdateThisFrame || resultDidUpdate;//cleared after rendering
 	}
 }

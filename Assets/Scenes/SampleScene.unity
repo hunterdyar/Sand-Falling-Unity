@@ -402,8 +402,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3fcd304a574e4a8ca34c3c5927aaa97f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  _chunksWide: 5
-  _chunksTall: 3
+  _chunksWide: 10
+  _chunksTall: 10
+  pixelChunkSize: 100
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0

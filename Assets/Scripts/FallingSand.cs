@@ -18,7 +18,7 @@ namespace Scripts
 
 		public int _chunksWide;
 		public int _chunksTall;
-		private int pixelChunkSize = 128;
+		public int pixelChunkSize = 128;
 		public int Width => _width;
 		private int _width;
 		public int Height => _height;
@@ -36,7 +36,6 @@ namespace Scripts
 		{
 			var doc = GetComponent<UIDocument>();
 			_renderContainer = doc.rootVisualElement;
-
 		}
 
 		private void Start()
@@ -59,14 +58,13 @@ namespace Scripts
 					//flip upside down. 00 is top left, but in texture space it's bottom left.
 					e.style.scale = new StyleScale(new Vector2(1, -1));
 					//create chunk
-					// int o = _width*_width * y + _height * x;
 					int id = (_chunksWide * y) + x;
 					int o = id * pixelChunkSize * pixelChunkSize;
 					if (o > _pixels.Length)
 					{
 						Debug.LogError("fuck");
 					}
-					var chunk = new Chunk(this, o,pixelChunkSize, pixelChunkSize,x,y);
+					var chunk = new Chunk(this, o,id,pixelChunkSize, pixelChunkSize,x,y);
 					chunk.VisualElement = e;
 					_chunks.Add(new int2(x, y),chunk);
 					
