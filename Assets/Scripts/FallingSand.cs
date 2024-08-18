@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using Unity.Collections;
+using Unity.Jobs;
 using Unity.Mathematics;
 using UnityEditor;
 using UnityEngine;
@@ -17,6 +19,14 @@ namespace Scripts
 		public int _chunksWide;
 		public int _chunksTall;
 		private int pixelChunkSize = 128;
+		public int Width => _width;
+		private int _width;
+		public int Height => _height;
+		private int _height;
+		public NativeArray<Pixel> Pixels => _pixels;
+
+		private NativeArray<Pixel> _pixels;
+		
 		//run physics
 		private SandPhysics _physics;
 		//render the output.
@@ -26,11 +36,15 @@ namespace Scripts
 		{
 			var doc = GetComponent<UIDocument>();
 			_renderContainer = doc.rootVisualElement;
+
 		}
 
 		private void Start()
 		{
 			_chunks = new Dictionary<int2, Chunk>();
+			_pixels = new NativeArray<Pixel>(_chunksWide*pixelChunkSize*_chunksTall*pixelChunkSize, Allocator.Persistent);
+			_width = _chunksWide*pixelChunkSize;
+			_height = _chunksTall*pixelChunkSize;
 			for (int x = 0; x < _chunksWide; x++)
 			{
 				for (int y = 0; y < _chunksTall; y++)
@@ -42,9 +56,18 @@ namespace Scripts
 					e.style.left = new StyleLength(new Length(pixelChunkSize * x, LengthUnit.Pixel));
 					e.style.top = new StyleLength(new Length(pixelChunkSize * y, LengthUnit.Pixel));
 					e.style.position = new StyleEnum<Position>(Position.Absolute);
-					
+					//flip upside down. 00 is top left, but in texture space it's bottom left.
+					e.style.scale = new StyleScale(new Vector2(1, -1));
 					//create chunk
-					var chunk = new Chunk(this, pixelChunkSize, pixelChunkSize,x,y);
+					// int o = _width*_width * y + _height * x;
+					int id = (_chunksWide * y) + x;
+					int o = id * pixelChunkSize * pixelChunkSize;
+					if (o > _pixels.Length)
+					{
+						Debug.LogError("fuck");
+					}
+					var chunk = new Chunk(this, o,pixelChunkSize, pixelChunkSize,x,y);
+					chunk.VisualElement = e;
 					_chunks.Add(new int2(x, y),chunk);
 					
 					//apply texture as background image to chunk. Texture is a reference, so this will just update.
@@ -60,35 +83,65 @@ namespace Scripts
 		private void FixedUpdate()
 		{
 			//finish the last frame if it's not finished yet.
-			RunWorldPhysics();
-			
 		}
-
-		private void LateUpdate()
-		{
-		}
-
-
+		
 		private void Update()
 		{
+			RunWorldPhysics();
 			 if (Input.GetMouseButton(0))
 			 {
 			 	var x = Mathf.FloorToInt(Input.mousePosition.x);
 			 	var y = Mathf.FloorToInt(Screen.height-Input.mousePosition.y);
-			    x = Mathf.Clamp(x, 0, pixelChunkSize * _chunksWide);
-			    y = Mathf.Clamp(y, 0, pixelChunkSize * _chunksTall);
-
-			    var c = GetChunkFromPixel(x, y);
-			    if (c != null)
+			    x = Mathf.Clamp(x, 0, _width);
+			    y = Mathf.Clamp(y, 0, _height);
+			    var chunk = GetChunkFromPixel(x, y);
+			    if (chunk != null)
 			    {
-				    c.SetPixelGlobal(x,y,Pixel.Sand);
+				    int2 cp = new int2(Mathf.FloorToInt(x -(chunk.Index.x*pixelChunkSize)), Mathf.FloorToInt(y -(chunk.Index.y*pixelChunkSize)));
+				    SetPixel(chunk.Offset+(cp.y*pixelChunkSize+cp.x), Pixel.Sand);
+				    chunk.SetDidUpdate();
 			    }
 			 }
 
+			 List<JobHandle> handles = new List<JobHandle>();
+			 //setup the visual loops.
 			 foreach (var chunk in _chunks.Values)
 			 {
-				 chunk.ApplyTexture();
+				 if (chunk.didUpdateThisFrame)
+				 {
+					 chunk.VisualElement.style.unityBackgroundImageTintColor = Color.white;
+				 }
+				 else
+				 {
+					 chunk.VisualElement.style.unityBackgroundImageTintColor = Color.gray;
+				 }
+				 
+				 if (chunk.didUpdateThisFrame)
+				 {
+					 var j = chunk.GetTextureJob();
+					 var handle = j.Schedule(pixelChunkSize*pixelChunkSize,256);
+					 handles.Add(handle);
+				 }
+				 
 			 }
+			 
+			 //wait for one to complete. The rest will complete in about the same time, we'll wait for them all.
+			 //if nothing updates, handles will be empty
+			 foreach (var handle in handles)
+			 {
+				 handle.Complete();
+			 }
+
+			 //this resets didupdateThisFrame to false.
+			 foreach (var chunk in _chunks.Values)
+			 {
+				 chunk.AfterTextureJob();
+			 }
+		}
+
+		private void SetPixel(int i, Pixel sand)
+		{
+			_pixels[i] = sand;
 		}
 
 		private Chunk GetChunkFromPixel(int x, int y)
@@ -107,33 +160,16 @@ namespace Scripts
 
 			_physics.StepPhysicsAll();
 			_physics.Complete();
-
 		}
 
 		private void OnDestroy()
 		{
+			_pixels.Dispose();
 			foreach (var chunk in _chunks.Values)
 			{
 				chunk.Dispose();
 			}
 			_physics.Dispose();
-		}
-
-		public void ApplyChange(PendingPixelAssignment pending)
-		{
-			if (_chunks.TryGetValue(new int2(pending.attempting), out var chunk))
-			{
-				var p = chunk.GetPixel(pending.AX, pending.AY);
-				if (p == Pixel.Empty)//todo: encode condition into the pending object.
-				{
-					chunk.SetPixel(pending.AX, pending.AY, pending.APixel);
-					//if we could...
-					if (_chunks.TryGetValue(new int2(pending.dependant), out var chunk2))
-					{
-						chunk2.SetPixel(pending.DX, pending.DY, pending.DPixel);
-					}
-				}
-			}
 		}
 	}
 }

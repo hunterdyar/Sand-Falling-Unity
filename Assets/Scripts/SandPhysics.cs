@@ -1,7 +1,10 @@
 ﻿using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.Serialization.Json;
 using Unity.Burst;
+using Unity.Burst.CompilerServices;
 using Unity.Collections;
+using Unity.Collections.LowLevel.Unsafe;
 using Unity.Jobs;
 using Unity.Mathematics;
 using UnityEngine;
@@ -11,17 +14,18 @@ namespace Scripts
 	public class SandPhysics
 	{
 		public FallingSand World;
-		private readonly NativeList<PendingPixelAssignment> _pending = new NativeList<PendingPixelAssignment>();
 
 		public bool Running => _running;
 		private bool _running = false;
 		private Stack<SandPhysicsJob> _requiringDeallocation = new Stack<SandPhysicsJob>();
 		private NativeArray<JobHandle> _jobs;
 
+		private NativeBitArray UpdatedThisTick;
 		public SandPhysics(FallingSand world)
 		{
 			World = world;
 			_jobs = new NativeArray<JobHandle>(world.Chunks.Count, Allocator.Persistent);
+			UpdatedThisTick = new NativeBitArray(world.Width*world.Height, Allocator.Persistent);
 		}
 
 		public void StepPhysicsAll()
@@ -67,24 +71,25 @@ namespace Scripts
 				{
 					var job = new SandPhysicsJob
 					{
-						Height = chunk.Height,
-						Width = chunk.Width,
+						ChunkDataOffset = chunk.Offset,
+						ChunkHeight = chunk.Height,
+						ChunkWidth = chunk.Width,
+						WorldWidth = World.Width,
+						WorldHeight = World.Height,
 						Index = chunk.Index,
-						Pixels = chunk.Pixels,
-						ChunksWide = World._chunksWide,
-						ChunksTall = World._chunksTall,
-						Pending = new NativeList<PendingPixelAssignment>(Allocator.Persistent),
-						Updated = new NativeBitArray(chunk.Width * chunk.Height, Allocator.TempJob)
+						//todo: chunk can save it's slice.
+						Pixels = new NativeSlice<Pixel>(World.Pixels,chunk.Offset,chunk.Width*chunk.Height),
+						//todo: cache this array
+						Updated = new NativeBitArray(chunk.Width * chunk.Height, Allocator.Persistent)
 					};
+					
 					_requiringDeallocation.Push(job);
 					var handle = job.Schedule(deps);
 					_jobs[jobIndex] = handle;
 					jobIndex++;
 				}
 			}
-
-
-
+			
 			_running = false;
 		}
 		
@@ -101,19 +106,15 @@ namespace Scripts
 			{
 				bool updated = job.Updated.TestAny(0, job.Updated.Length);
 				World.Chunks[job.Index].UpdatedPhysics(updated);
-				foreach (var pending in job.Pending)
-				{
-					World.ApplyChange(pending);
-				}
-				job.Pending.Clear();//not needed!?
+				//todo: can be cached to avoid the reallocationa
 				job.Updated.Dispose();
-				job.Pending.Dispose();
 			}
 		}
 
 		public void Dispose()
 		{
 			_jobs.Dispose();
+			UpdatedThisTick.Dispose();
 		}
 	}
 
@@ -147,56 +148,80 @@ namespace Scripts
 	public struct SandPhysicsJob : IJob
 	{
 		//moine
-		public NativeList<PendingPixelAssignment> Pending;
 		public NativeBitArray Updated;
 		
 		//injected
-		public NativeArray<Pixel> Pixels;
-		public int Width;
-		public int Height;
+		[NativeDisableContainerSafetyRestriction,NativeDisableParallelForRestriction]
+		public NativeSlice<Pixel> Pixels;
+		public int ChunkDataOffset;
+		public int WorldWidth;
+		public int WorldHeight;
+		public int ChunkWidth;
+		public int ChunkHeight;
 		public int2 Index;
-		public int ChunksWide;
-		public int ChunksTall;
+		
+		private int _total;
+		private int _offsetX;
+		private int _offsetY;
 		public void Execute()
 		{
-			int total = Width * Height;
+			// _offsetX = Index.x * ChunkWidth;
+			// _offsetY = Index.y * ChunkHeight;
+			// _total = ChunkWidth * ChunkHeight;
 			//do the physics for a chunk.
-			for (int i = 0; i < Pixels.Length; i++)
+			for (int x = 0; x < ChunkWidth; x++)
 			{
-				if (Pixels[i] == Pixel.Sand && Updated.TestNone(i))
+				for (int y = 0; y < ChunkHeight; y++)
 				{
-					int x = i % Width;
-					int y = i / Width;
-					int below = (y - 1) * Width + x;
-					if (below > 0 && Pixels[below] == Pixel.Empty)
+					int i = (ChunkWidth*y+x);
+					if (Pixels[i] == Pixel.Sand)// && Updated.TestNone(i)
 					{
-						//not neccesary, because a for loop will never check i twice. Can use it for counts, for now, tho.
-						// Updated.Set(i, true);
-						Updated.Set(below,true);
-						//swap position.
-						Pixels[i] = Pixel.Empty;
-						Pixels[below] = Pixel.Sand;
-						continue;
-					}
-					else
-					{
-						if (below <= 0 && Index.y < ChunksTall - 1)
+						if (MoveIfEmpty(i,x,y, 0, 1))
 						{
-							Updated.Set(i, true);//we need to force the chunk to redraw, at least.
-							Pending.Add(new PendingPixelAssignment(Index, x, Height - 1, Pixel.Empty,
-								new int2(Index.x, Index.y + 1), x, 0, Pixel.Sand));
+							continue;
+						}
+						
+						//try down left.
+						if (MoveIfEmpty(i,x,y, -1, 1))
+						{
+							continue;
+						}
+						
+						//try down right.
+						if (MoveIfEmpty(i, x,y,1, 1))
+						{
 							continue;
 						}
 					}
 				}
 			}
 		}
-		
-		//we generaly are assuming that x or y will be negative or over the max and go out of bounds.
-		//we are also assuming that all chunks have the same width and height.
-		public int2 LocalToWorld(int x, int y)
+
+		private bool MoveIfEmpty(int i,int x, int y, int dx, int dy)
 		{
-			return new int2(y + Width * Index.y, x + Height * Index.y);
+			var nx = x + dx;
+			var ny = y + dy;
+			//check if we are in bounds, and thus only updating ourselves.
+			if (nx > 0 && nx < ChunkWidth && ny > 0 && ny < ChunkHeight)
+			{
+				int next = (ChunkWidth * ny + nx);
+				if (Pixels[next] == Pixel.Empty)
+				{
+					//not neccesary, because a for loop will never check i twice. Can use it for counts, for now, tho.
+					// Updated.Set(i, true);
+					//Updated.Set(next, true);
+					//swap position.
+					Pixels[next] = Pixels[i];
+					Pixels[i] = Pixel.Empty;
+					return true;
+				}
+				else
+				{
+					return false;
+				}
+			}
+			//can't move out of bounds yet...
+			return false;
 		}
 	}
 }
