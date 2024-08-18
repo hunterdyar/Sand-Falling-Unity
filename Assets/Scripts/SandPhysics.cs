@@ -17,7 +17,6 @@ namespace Scripts
 
 		public bool Running => _running;
 		private bool _running = false;
-		private Stack<SandPhysicsJob> _requiringDeallocation = new Stack<SandPhysicsJob>();
 		private NativeArray<JobHandle> _jobs;
 
 		private NativeBitArray UpdatedThisTick;
@@ -82,8 +81,6 @@ namespace Scripts
 						ChunkDataOffset = chunk.Offset,
 						ChunkHeight = chunk.Height,
 						ChunkWidth = chunk.Width,
-						WorldWidth = World.Width,
-						WorldHeight = World.Height,
 						WorldPixels = World.Pixels,
 						NumberChunksWide = World._chunksWide,
 						NumberChunksTall = World._chunksTall,
@@ -93,7 +90,6 @@ namespace Scripts
 						//todo: cache this array
 					};
 					
-					_requiringDeallocation.Push(job);
 					var handle = job.Schedule(deps);
 					_jobs[jobIndex] = handle;
 					jobIndex++;
@@ -110,12 +106,6 @@ namespace Scripts
 			for (int i = _jobs.Length - 1; i >= 0; i--)
 			{
 				_jobs[i].Complete();
-			}
-
-			while (_requiringDeallocation.TryPop(out var job))
-			{
-				// bool updated = UpdatedThisTick.TestAny(job.ChunkDataOffset, job.ChunkHeight * job.ChunkWidth);
-				// World.Chunks[job.ChunkIndex].UpdatedPhysics(updated);
 			}
 
 			//we have to loop through all of them (or all the ones where updated is true, at least.)
@@ -143,17 +133,21 @@ namespace Scripts
 		[NativeDisableContainerSafetyRestriction,NativeDisableParallelForRestriction]
 		public NativeArray<Pixel> WorldPixels;
 		public int ChunkDataOffset;
-		public int WorldWidth;
-		public int WorldHeight;
 		public int NumberChunksWide;
 		public int NumberChunksTall;
 		public int ChunkWidth;
 		public int ChunkHeight;
 		public int2 ChunkIndex;
 		public int ChunkID;
+		
 		private int _total;
 		private int _offsetX;
 		private int _offsetY;
+		
+		//avoid constant allocation
+		private int local;
+		private int next;
+		
 		public void Execute()
 		{
 			// _offsetX = Index.x * ChunkWidth;
@@ -193,17 +187,18 @@ namespace Scripts
 			int ncid = ChunkID;
 			var nx = x + dx;
 			var ny = y + dy;
-			int local = (ChunkWidth * ny + nx);
-			int next = ChunkDataOffset + local;
+			
+			local = (ChunkWidth * ny + nx);
+			next = ChunkDataOffset + local;
 			//check if we are out of bounds, and get new next-index from a different chunk.
-			if (nx < 0 || nx >= ChunkWidth || ny < 0 || ny >= ChunkHeight)
+			if (ny >= ChunkHeight || nx < 0 || nx >= ChunkWidth || ny < 0)
 			{ 
-				int cdx = nx < 0 ? -1 : (nx >= ChunkWidth ? 1 : 0);//normalize to -1,1
-				int cdy = ny < 0 ? -1 : (ny >= ChunkHeight ? 1 : 0); //normalize to -1,1
+				// int cdx = nx < 0 ? -1 : (nx >= ChunkWidth ? 1 : 0);//normalize to -1,1
+				// int cdy = ny < 0 ? -1 : (ny >= ChunkHeight ? 1 : 0); //normalize to -1,1
 
 				//we can assert that cdx != 0 or cdy != 0 because dx and dy should not be both 0.
-				var destIndexX = ChunkIndex.x + cdx;
-				var destIndexY = ChunkIndex.y+cdy;
+				var destIndexX = ChunkIndex.x + (nx < 0 ? -1 : (nx >= ChunkWidth ? 1 : 0));
+				var destIndexY = ChunkIndex.y + (ny < 0 ? -1 : (ny >= ChunkHeight ? 1 : 0));
 
 				//check against world edges
 				if (
@@ -252,12 +247,10 @@ namespace Scripts
 			//now...
 			if (WorldPixels[next] == Pixel.Empty)
 			{
-				//not neccesary, because a for loop will never check i twice. Can use it for counts, for now, tho.
-				// Updated.Set(i, true);
-				//Updated.Set(next, true);
-				//swap position.
 				UpdatedThisTick.Set(next,true);
+				//not neccesary, because a for loop will never check i twice.... EXCEPT using it for a single pixel that falls into next.
 				UpdatedThisTick.Set(gi,true);
+
 				WorldPixels[next] = Pixel.Sand;
 				WorldPixels[gi] = Pixel.Empty;
 				return true;
@@ -266,7 +259,6 @@ namespace Scripts
 			{
 				return false;
 			}
-			return false;
 		}
 	}
 }
