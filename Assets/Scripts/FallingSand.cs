@@ -29,6 +29,9 @@ namespace Scripts
 
 		private Pixel[] _pixelsBrush = new[] { Pixel.Sand, Pixel.Water , Pixel.Solid};
 		private int _brushIndex;
+		private int _brushSize;
+
+		public bool TintSleepingChunks = false;
 
 		//run physics
 		private SandPhysics _physics;
@@ -103,21 +106,29 @@ namespace Scripts
 				Debug.Log($"Brush: {_pixelsBrush[_brushIndex]}");
 			}
 
+			_brushSize = Mathf.Clamp(_brushSize + (int)Input.mouseScrollDelta.y,1,100);
+
 			if (Input.GetMouseButton(0))
 			{
-				var x = Mathf.FloorToInt(Input.mousePosition.x);
-				var y = Mathf.FloorToInt(Screen.height - Input.mousePosition.y);
-				x = Mathf.Clamp(x, 0, _width);
-				y = Mathf.Clamp(y, 0, _height);
-				var chunk = GetChunkFromPixel(x, y);
-				if (chunk != null)
+				for (int bx = 0; bx < _brushSize; bx++)
 				{
-					int2 cp = new int2(Mathf.FloorToInt(x - (chunk.Index.x * pixelChunkSize)),
-						Mathf.FloorToInt(y - (chunk.Index.y * pixelChunkSize)));
+					for (int by = 0; by < _brushSize; by++)
+					{
+						var x = Mathf.FloorToInt(Input.mousePosition.x-(_brushSize /2));
+						var y = Mathf.FloorToInt(Screen.height - Input.mousePosition.y - (_brushSize /2));
+						x = Mathf.Clamp(x+bx, 0, _width);
+						y = Mathf.Clamp(y+by, 0, _height);
+						var chunk = GetChunkFromPixel(x, y);
+						if (chunk != null)
+						{
+							int2 cp = new int2(Mathf.FloorToInt(x - (chunk.Index.x * pixelChunkSize)),
+								Mathf.FloorToInt(y - (chunk.Index.y * pixelChunkSize)));
 
-					var pixel = _pixelsBrush[_brushIndex];
-					SetPixel(chunk.Offset + (cp.y * pixelChunkSize + cp.x), pixel);
-					chunk.SetDidUpdate();
+							var pixel = _pixelsBrush[_brushIndex];
+							SetPixel(chunk.Offset + (cp.y * pixelChunkSize + cp.x), pixel);
+							chunk.SetDidUpdate();
+						}
+					}
 				}
 			}
 
@@ -125,13 +136,16 @@ namespace Scripts
 			//setup the visual loops.
 			foreach (var chunk in _chunks.Values)
 			{
-				if (chunk.didUpdateThisFrame)
+				if (TintSleepingChunks)
 				{
-					chunk.VisualElement.style.unityBackgroundImageTintColor = Color.white;
-				}
-				else
-				{
-					chunk.VisualElement.style.unityBackgroundImageTintColor = Color.gray;
+					if (chunk.didUpdateThisFrame)
+					{
+						chunk.VisualElement.style.unityBackgroundImageTintColor = Color.white;
+					}
+					else
+					{
+						chunk.VisualElement.style.unityBackgroundImageTintColor = Color.gray;
+					}
 				}
 
 				if (chunk.didUpdateThisFrame)

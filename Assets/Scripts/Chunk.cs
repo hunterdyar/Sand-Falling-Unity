@@ -51,7 +51,7 @@ public class Chunk
 		
 		_rawTexture = new NativeArray<float>(total*4,Allocator.Persistent);
 		didUpdateThisFrame = true;
-		var bg = Color.Lerp(Color.black,Color.white, 0.1f);
+		var bg = Color.black;
 		_bg = new float4(bg.r, bg.g, bg.b, bg.a);
 	}
 	
