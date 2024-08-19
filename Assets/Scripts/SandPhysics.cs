@@ -30,13 +30,14 @@ namespace Scripts
 			//updated.
 			UpdatedThisTick = new NativeBitArray(world.Width*world.Height,Allocator.Persistent);
 		}
-
+		
 		public void StepPhysicsAll()
 		{
 			_stopwatch = Stopwatch.StartNew();
 			_running = true;
 			//reset all update data, new tick!
 			UpdatedThisTick.Clear();
+			
 			//todo: cache this into an array of lists.
 			//divide all of the chunks into sections that will operate independently.
 			//a,b,c
@@ -91,7 +92,7 @@ namespace Scripts
 						WorldWidth = World.Width,
 
 						ChunkID = chunk.ID,
-						UpdatedThisTick = this.UpdatedThisTick
+						Updated= this.UpdatedThisTick
 						//todo: cache this array
 					};
 					
@@ -122,15 +123,16 @@ namespace Scripts
 				//todo: do this for the top, bottom, right, and left columns to see if we were updated by a neighbor and, use faster check for self for all the sleepy bois.
 				//losing this optimization is what gains me fast entity lookup, so it's worth the annoyance here.
 				bool updated = false;
-				 for (int i = 0; i < chunk.Height; i++)
-				 {
-					 //we should be able to read chunk-width stretches of our update data
-					if (UpdatedThisTick.TestAny((i+chunk.OffsetY)*World.Width+chunk.OffsetX, chunk.Width));
+				for (int i = 0; i < chunk.Height; i++)
+				{
+					//we should be able to read chunk-width stretches of our update data
+					
+					if (UpdatedThisTick.TestAny(((i + chunk.OffsetY) * World.Width) + chunk.OffsetX, chunk.Width))
 					{
-				 		updated = true;
-				 		break;
+						updated = true;
+						break;
 					}
-				 }
+				}
 				chunk.UpdatedPhysics(updated);
 			}
 		}
@@ -147,7 +149,7 @@ namespace Scripts
 	{
 		//moine
 		[NativeDisableContainerSafetyRestriction, NativeDisableParallelForRestriction]
-		public NativeBitArray UpdatedThisTick;
+		public NativeBitArray Updated;
 
 		[NativeDisableContainerSafetyRestriction,NativeDisableParallelForRestriction]
 		public NativeArray<Pixel> WorldPixels;
@@ -175,7 +177,7 @@ namespace Scripts
 				{
 					flop = random.NextBool();
 					int index = (WorldWidth*(ChunkOffsetY+y)) + ChunkOffsetX+x;
-					if (UpdatedThisTick.TestNone(index))
+					if (Updated.TestNone(index))
 					{
 						if (WorldPixels[index] == Pixel.Sand)
 						{
@@ -213,10 +215,10 @@ namespace Scripts
 			//now...
 			if (WorldPixels[next] == Pixel.Empty)
 			{
-				UpdatedThisTick.Set(next,true);
+				Updated.Set(next,true);
 				//not neccesary, because a for loop will never check i twice.... EXCEPT moving OUT of the frame.
 				//there might be some optimization where we only call the .Set function on that edge case?
-				UpdatedThisTick.Set(index,true);
+				Updated.Set(index,true);
 				//swap
 				WorldPixels[next] = WorldPixels[index];
 				WorldPixels[index] = Pixel.Empty;
