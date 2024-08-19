@@ -1,4 +1,4 @@
-﻿public enum Pixel
+﻿public enum Pixel : byte
 {
 	Empty,
 	Solid,

@@ -150,6 +150,7 @@ namespace Scripts
 
 				if (chunk.didUpdateThisFrame)
 				{
+					//todo: something like  if(chunk.VisualElement.visible) but with camera bounds or parent scroll rect... whatever unity already does automatically.
 					var j = chunk.GetTextureJob();
 					var handle = j.Schedule(pixelChunkSize * pixelChunkSize, 256);
 					handles.Add(handle);

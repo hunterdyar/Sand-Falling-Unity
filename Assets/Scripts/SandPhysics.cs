@@ -8,6 +8,7 @@ using Unity.Collections.LowLevel.Unsafe;
 using Unity.Jobs;
 using Unity.Mathematics;
 using UnityEngine;
+using Random = Unity.Mathematics.Random;
 
 namespace Scripts
 {
@@ -143,13 +144,14 @@ namespace Scripts
 		private int _total;
 		private int _offsetX;
 		private int _offsetY;
-		
 		//avoid constant allocation
 		private int local;
 		private int next;
-		
+		private bool flop;
+		private Random random;
 		public void Execute()
 		{
+			random = new Random((uint)(ChunkID+1+ChunkDataOffset));
 			// _offsetX = Index.x * ChunkWidth;
 			// _offsetY = Index.y * ChunkHeight;
 			// _total = ChunkWidth * ChunkHeight;
@@ -158,6 +160,7 @@ namespace Scripts
 			{
 				for (int y = 0; y < ChunkHeight; y++)
 				{
+					flop = random.NextBool();
 					int index = ChunkDataOffset+(ChunkWidth*y+x);
 					if (!UpdatedThisTick.TestAny(index))
 					{
@@ -165,18 +168,20 @@ namespace Scripts
 						{
 							if (MoveIfEmpty(index, x, y, 0, 1)) continue;
 							// try down left.
-							if (MoveIfEmpty(index, x, y, -1, 1)) continue;
+							if (MoveIfEmpty(index, x, y, flop?-1:1, 1)) continue;
 							//try down right.
-							if (MoveIfEmpty(index, x, y, 1, 1)) continue;
+							if (MoveIfEmpty(index, x, y, flop?1:-1, 1)) continue;
 						}else if (WorldPixels[index] == Pixel.Water) // && Updated.TestNone(i)
 						{
 							if (MoveIfEmpty(index, x, y, 0, 1)) continue;
 							// try left.
-							if (MoveIfEmpty(index, x, y, -1, 0)) continue;
+							if (MoveIfEmpty(index, x, y, flop ? -1 : 1, 0)) continue;
 							//try right.
-							if (MoveIfEmpty(index, x, y, 1, 0)) continue;
+							if (MoveIfEmpty(index, x, y, flop ? 1 : -1, 0)) continue;
 						}
+
 					}
+
 				}
 			}
 		}
@@ -223,7 +228,7 @@ namespace Scripts
 				if (nx < 0)
 				{
 					//left, we go to the max dx.
-					nx = ChunkWidth -1+dx;
+					nx = ChunkWidth-1+(dx+1);
 				}else if (nx >= ChunkWidth)
 				{
 					//right, go to 0. (1 to the right is the leftmost 0 col)
