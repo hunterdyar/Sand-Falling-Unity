@@ -33,7 +33,6 @@ public class Chunk
 	private int _height;
 	private float4 _bg;
 	private NativeArray<float> _rawTexture;
-
 	public bool didUpdateThisFrame;
 	public FallingSand World;
 	public Chunk(FallingSand world,int offset, int id,int w, int h, int indexX, int indexY)

@@ -3,5 +3,7 @@
 	Empty,
 	Solid,
 	Sand,
-	Water
+	//bloodSand
+	Water,
+	//bloodWater,
 }

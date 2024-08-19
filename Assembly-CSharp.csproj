@@ -48,7 +48,10 @@
     <Compile Include="Assets\Scripts\Pixel.cs" />
     <Compile Include="Assets\Scripts\SandPhysics.cs" />
     <Compile Include="Assets\Scripts\FallingSand.cs" />
+    <Compile Include="Assets\Scripts\Entities\LemmingState.cs" />
     <Compile Include="Assets\Scripts\Chunk.cs" />
+    <Compile Include="Assets\Scripts\Entities\Lemming.cs" />
+    <Compile Include="Assets\Scripts\EntityManager.cs" />
     <None Include="Assets\UI\PixelWorld.uxml" />
     <Reference Include="UnityEngine">
       <HintPath>C:\Program Files\Unity\Hub\Editor\2022.3.39f1\Editor\Data\Managed\UnityEngine\UnityEngine.dll</HintPath>

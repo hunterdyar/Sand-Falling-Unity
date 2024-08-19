@@ -24,8 +24,11 @@ namespace Scripts
 		public int Height => _height;
 		private int _height;
 		public NativeArray<Pixel> Pixels => _pixels;
-
 		private NativeArray<Pixel> _pixels;
+
+		//All of the lemmings
+		public NativeList<Lemming> Lemmings;
+		private NativeList<Lemming> _lemmings;
 
 		private Pixel[] _pixelsBrush = new[] { Pixel.Sand, Pixel.Water , Pixel.Solid};
 		private int _brushIndex;
@@ -35,7 +38,7 @@ namespace Scripts
 
 		//run physics
 		private SandPhysics _physics;
-
+		private EntityManager _entityManager;
 		//render the output.
 		private VisualElement _renderContainer;
 
@@ -84,6 +87,7 @@ namespace Scripts
 			}
 
 			_physics = new SandPhysics(this);
+			_entityManager = new EntityManager(this);
 		}
 
 		private void FixedUpdate()
@@ -190,7 +194,14 @@ namespace Scripts
 			}
 
 			_physics.StepPhysicsAll();
+			_entityManager.LemmingsTick();
+		}
+
+		private void LateUpdate()
+		{
+			//should these be dependent on each other? probably?
 			_physics.Complete();
+			_entityManager.LateLemmingsTick();
 		}
 
 		private void OnDestroy()
