@@ -27,7 +27,7 @@ namespace Scripts
 		private NativeArray<Pixel> _pixels;
 
 		//All of the lemmings
-		public NativeList<Lemming> Lemmings;
+		public NativeList<Lemming> Lemmings => _lemmings;
 		private NativeList<Lemming> _lemmings;
 
 		private Pixel[] _pixelsBrush = new[] { Pixel.Sand, Pixel.Water , Pixel.Solid};
@@ -51,8 +51,8 @@ namespace Scripts
 		private void Start()
 		{
 			_chunks = new Dictionary<int2, Chunk>();
-			_pixels = new NativeArray<Pixel>(_chunksWide * pixelChunkSize * _chunksTall * pixelChunkSize,
-				Allocator.Persistent);
+			_lemmings = new NativeList<Lemming>(Allocator.Persistent);
+			_pixels = new NativeArray<Pixel>(_chunksWide * pixelChunkSize * _chunksTall * pixelChunkSize, Allocator.Persistent);
 			_width = _chunksWide * pixelChunkSize;
 			_height = _chunksTall * pixelChunkSize;
 			for (int x = 0; x < _chunksWide; x++)
@@ -70,13 +70,8 @@ namespace Scripts
 					e.style.scale = new StyleScale(new Vector2(1, -1));
 					//create chunk
 					int id = (_chunksWide * y) + x;
-					int o = id * pixelChunkSize * pixelChunkSize;
-					if (o > _pixels.Length)
-					{
-						Debug.LogError("fuck");
-					}
 
-					var chunk = new Chunk(this, o, id, pixelChunkSize, pixelChunkSize, x, y);
+					var chunk = new Chunk(this,  id, pixelChunkSize, pixelChunkSize, x, y);
 					chunk.VisualElement = e;
 					_chunks.Add(new int2(x, y), chunk);
 
@@ -123,13 +118,10 @@ namespace Scripts
 						x = Mathf.Clamp(x+bx, 0, _width);
 						y = Mathf.Clamp(y+by, 0, _height);
 						var chunk = GetChunkFromPixel(x, y);
+						var pixel = _pixelsBrush[_brushIndex];
+						SetPixel(y*_width+x,pixel);
 						if (chunk != null)
 						{
-							int2 cp = new int2(Mathf.FloorToInt(x - (chunk.Index.x * pixelChunkSize)),
-								Mathf.FloorToInt(y - (chunk.Index.y * pixelChunkSize)));
-
-							var pixel = _pixelsBrush[_brushIndex];
-							SetPixel(chunk.Offset + (cp.y * pixelChunkSize + cp.x), pixel);
 							chunk.SetDidUpdate();
 						}
 					}
@@ -207,12 +199,15 @@ namespace Scripts
 		private void OnDestroy()
 		{
 			_pixels.Dispose();
+			_lemmings.Dispose();
+
 			foreach (var chunk in _chunks.Values)
 			{
 				chunk.Dispose();
 			}
 
 			_physics.Dispose();
+			_entityManager.Dispose();
 		}
 	}
 }

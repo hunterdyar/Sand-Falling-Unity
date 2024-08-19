@@ -52,8 +52,8 @@ namespace Scripts
 				
 				int selfX = lemming.PositionIndex % WorldWidth;
 				int selfY = lemming.PositionIndex / WorldWidth;
-				var currentBelow = Pixels[lemming.ChunkOffset + lemming.PositionIndex];
-				var currentAbove = Pixels[lemming.ChunkOffset + (selfY-1)*ChunkWidth+selfX];
+				var currentBelow = Pixels[(selfY) * WorldWidth + selfX];
+				var currentAbove = Pixels[(selfY-1) * WorldWidth + selfX];
 
 				//we will start very fragile, I guess.
 				if (currentBelow != Pixel.Empty || currentAbove != Pixel.Empty)
@@ -64,12 +64,17 @@ namespace Scripts
 				}
 
 				//move forward in facing direction
+				var forward = Pixels[(selfY) * WorldWidth + selfX+lemming.FacingX];
 				//if spot in front of us is available, move into it
 				
 				//otherwise, turn around.
 			}
 
 			
+		}
+
+		public void Dispose()
+		{
 		}
 	}
 }

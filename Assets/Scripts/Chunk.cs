@@ -20,9 +20,10 @@ public class Chunk
 	
 	public int Width => _width;
 	private int _width;
-	public int Offset=>_offset;
-	private int _offset;
-	private int _totalWidth;
+	public int OffsetX=>_offsetX;
+	private readonly int _offsetX;
+	public int OffsetY => _offsetY;
+	private readonly int _offsetY;
 	public int Height => _height;
 	public bool NeedsUpdatePhysics = true;
 	private bool _physicsUpdatedLastTick;
@@ -35,14 +36,20 @@ public class Chunk
 	private NativeArray<float> _rawTexture;
 	public bool didUpdateThisFrame;
 	public FallingSand World;
-	public Chunk(FallingSand world,int offset, int id,int w, int h, int indexX, int indexY)
+
+	/// <param name="id">unique id (index into chunks array)</param>
+	/// <param name="w">width of chunk in pixels</param>
+	/// <param name="h">height of chunk in pixels</param>
+	/// <param name="indexX">chunk coordinate x</param>
+	/// <param name="indexY">chunk coordinate y</param>
+	public Chunk(FallingSand world, int id,int w, int h, int indexX, int indexY)
 	{
 		this.ID = id;
-		this._offset = offset;
+		this._offsetX = indexX * w;
+		this._offsetY = indexY * h;
 		this.World = world;
 		_width = w;
 		_height = h;
-		this._totalWidth = world._chunksWide * w;
 		int total = w * h;
 		Index = new int2(indexX, indexY);
 		_chunkTex = new Texture2D(w, h,TextureFormat.RGBAFloat,true);
@@ -66,8 +73,10 @@ public class Chunk
 		{
 			Pixels = World.Pixels,
 			RawTexture = _rawTexture,
-			Offset = _offset,
+			OffsetX = _offsetX,
+			OffsetY = _offsetY,
 			Width = _width,
+			TotalWidth = World.Width,
 			Background = _bg,
 		};
 	}
@@ -99,14 +108,15 @@ public class Chunk
 
 		public int TotalWidth;
 		public int Width;
-		public int Offset; 
+		public int OffsetX;
+		public int OffsetY;
 		public float4 Background;
 		public void Execute(int i)
 		{
 			int x = i % Width;
 			int y = i / Width;
 			// int y = (
-			switch (Pixels[Offset+((Width * y) +x)])
+			switch (Pixels[(TotalWidth * (y+OffsetY)) + (x+OffsetX)])
 			{
 				case Pixel.Empty:
 					RawTexture[i * 4] = Background.x;
