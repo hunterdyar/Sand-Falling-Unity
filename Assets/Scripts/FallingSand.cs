@@ -103,8 +103,6 @@ namespace Scripts
 				{
 					_brushIndex = 0;
 				}
-
-				Debug.Log($"Brush: {_pixelsBrush[_brushIndex]}");
 			}
 
 			_brushSize = Mathf.Clamp(_brushSize + (int)Input.mouseScrollDelta.y,1,100);

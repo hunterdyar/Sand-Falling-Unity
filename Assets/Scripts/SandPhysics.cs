@@ -115,7 +115,7 @@ namespace Scripts
 				_jobs[i].Complete();
 			}
 			_stopwatch.Stop();
-			UnityEngine.Debug.Log($"Physics Tick in {_stopwatch.ElapsedMilliseconds}ms");
+			//UnityEngine.Debug.Log($"Physics Tick in {_stopwatch.ElapsedMilliseconds}ms");
 
 			//we have to loop through all of them (or all the ones where updated is true, at least.)
 			foreach (var chunk in World.Chunks.Values)
@@ -175,24 +175,20 @@ namespace Scripts
 			{
 				for (int y = 0; y < ChunkHeight; y++)
 				{
-					flop = random.NextBool();
 					int index = (WorldWidth*(ChunkOffsetY+y)) + ChunkOffsetX+x;
 					if (Updated.TestNone(index))
 					{
 						if (WorldPixels[index] == Pixel.Sand)
 						{
-							if (MoveIfEmpty(index, x, y, 0, 1)) continue;
-							// try down left.
-							if (MoveIfEmpty(index, x, y, flop?-1:1, 1)) continue;
-							//try down right.
-							if (MoveIfEmpty(index, x, y, flop?1:-1, 1)) continue;
+							if (SwapIfMatch(index, x, y, 0, 1, Pixel.Empty)) continue;
+							if (SwapIfMatch(index, x, y, 0, 1, Pixel.Water)) continue;
+							if (SwapIfMatch(index, x, y, flop?-1:1, 1,Pixel.Empty)) continue;
+							if (SwapIfMatch(index, x, y, flop?1:-1, 1,Pixel.Empty)) continue;
 						}else if (WorldPixels[index] == Pixel.Water) // && Updated.TestNone(i)
 						{
-							if (MoveIfEmpty(index, x, y, 0, 1)) continue;
-							// try left.
-							if (MoveIfEmpty(index, x, y, flop ? -1 : 1, 0)) continue;
-							//try right.
-							if (MoveIfEmpty(index, x, y, flop ? 1 : -1, 0)) continue;
+							if (SwapIfMatch(index, x, y, 0, 1,Pixel.Empty)) continue;
+							if (SwapIfMatch(index, x, y, flop ? -1 : 1, 0,Pixel.Empty)) continue;
+							if (SwapIfMatch(index, x, y, flop ? 1 : -1, 0,Pixel.Empty)) continue;
 						}
 					}
 				}
@@ -201,10 +197,10 @@ namespace Scripts
 
 		
 		//todo: control the movement conditions without uneccesary repetative calls.
-		private bool MoveIfEmpty(int index,int x, int y, int dx, int dy)
+		private bool SwapIfMatch(int index, int x, int y, int dx, int dy, Pixel testPixel)
 		{
 			int next = (WorldWidth * (ChunkOffsetY+y+dy)) + (ChunkOffsetX+x+dx);
-			
+			flop = random.NextBool();
 			//out of bounds
 			
 			if (next < 0 || next >= _max)
@@ -213,7 +209,7 @@ namespace Scripts
 			}
 
 			//now...
-			if (WorldPixels[next] == Pixel.Empty)
+			if (WorldPixels[next] == testPixel)
 			{
 				Updated.Set(next,true);
 				//not neccesary, because a for loop will never check i twice.... EXCEPT moving OUT of the frame.
@@ -221,13 +217,14 @@ namespace Scripts
 				Updated.Set(index,true);
 				//swap
 				WorldPixels[next] = WorldPixels[index];
-				WorldPixels[index] = Pixel.Empty;
+				WorldPixels[index] = testPixel;
 				return true;
 			}
 			else
 			{
 				return false;
 			}
+			
 		}
 	}
 }
