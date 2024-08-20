@@ -30,8 +30,8 @@ namespace Scripts
 			//updated.
 			UpdatedThisTick = new NativeBitArray(world.Width*world.Height,Allocator.Persistent);
 		}
-		
-		public void StepPhysicsAll()
+
+		public void StepPhysicsAll(bool tickAll = false)
 		{
 			_stopwatch = Stopwatch.StartNew();
 			_running = true;
@@ -64,7 +64,7 @@ namespace Scripts
 								if ((cj + yi) % 3 == 0)
 								{
 									var c = World.Chunks[new int2(ci, cj)];
-									if (c.NeedsUpdatePhysics)
+									if (c.NeedsUpdatePhysics || tickAll)
 									{
 										current.Add(c);
 									}

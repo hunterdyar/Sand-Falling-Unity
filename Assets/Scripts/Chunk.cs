@@ -34,7 +34,7 @@ public class Chunk
 	private int _height;
 	private float4 _bg;
 	private NativeArray<float> _rawTexture;
-	public bool didUpdateThisFrame;
+	public bool isDirty;
 	public FallingSand World;
 
 	/// <param name="id">unique id (index into chunks array)</param>
@@ -56,15 +56,15 @@ public class Chunk
 		_chunkTex.filterMode = FilterMode.Point;
 		
 		_rawTexture = new NativeArray<float>(total*4,Allocator.Persistent);
-		didUpdateThisFrame = true;
+		isDirty = true;
 		var bg = new Color(0.1f, .1f, .1f, 1);
 		_bg = new float4(bg.r, bg.g, bg.b, bg.a);
 	}
 	
-	public void SetDidUpdate()
+	public void SetDirty()
 	{
-		didUpdateThisFrame = true;//force to draw
-		NeedsUpdatePhysics = true;//force to wake up physics
+		// isDirty = true;
+		UpdatedPhysics(true);//force to run physics
 	}
 	
 	public SetTextureDataJob GetTextureJob()
@@ -83,13 +83,13 @@ public class Chunk
 
 	public void AfterTextureJob()
 	{
-		if (didUpdateThisFrame)
+		if (isDirty)
 		{
 			_chunkTex.SetPixelData(_rawTexture, 0, 0);
 			_chunkTex.Apply();
 		}
 
-		didUpdateThisFrame = false;
+		isDirty = false;
 	}
 	
 	public void Dispose()
@@ -149,7 +149,7 @@ public class Chunk
 	public void UpdatedPhysics(bool resultDidUpdate)
 	{
 		//if we didn't change last frame and we didn't change this frame; go to sleep
-		if (!didUpdateThisFrame && !resultDidUpdate && !_physicsUpdatedLastTick)
+		if (!isDirty && !resultDidUpdate && !_physicsUpdatedLastTick)
 		{
 			NeedsUpdatePhysics = false;
 		}
@@ -160,6 +160,6 @@ public class Chunk
 
 		_physicsUpdatedLastTick = resultDidUpdate;
 		
-		didUpdateThisFrame = didUpdateThisFrame || resultDidUpdate;//cleared after rendering
+		isDirty = isDirty || resultDidUpdate;//cleared after rendering
 	}
 }

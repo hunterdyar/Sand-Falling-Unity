@@ -42,10 +42,12 @@ namespace Scripts
 		//render the output.
 		private VisualElement _renderContainer;
 
+		private bool _forceAllChunksPhysicsUpdate;
 		private void Awake()
 		{
 			var doc = GetComponent<UIDocument>();
 			_renderContainer = doc.rootVisualElement;
+			_forceAllChunksPhysicsUpdate = true;
 		}
 
 		private void Start()
@@ -122,7 +124,7 @@ namespace Scripts
 						SetPixel(y*_width+x,pixel);
 						if (chunk != null)
 						{
-							chunk.SetDidUpdate();
+							chunk.SetDirty();
 						}
 					}
 				}
@@ -134,7 +136,7 @@ namespace Scripts
 			{
 				if (TintSleepingChunks)
 				{
-					if (chunk.didUpdateThisFrame)
+					if (chunk.isDirty)
 					{
 						chunk.VisualElement.style.unityBackgroundImageTintColor = Color.white;
 					}
@@ -144,7 +146,7 @@ namespace Scripts
 					}
 				}
 
-				if (chunk.didUpdateThisFrame)
+				if (chunk.isDirty)
 				{
 					//todo: something like  if(chunk.VisualElement.visible) but with camera bounds or parent scroll rect... whatever unity already does automatically.
 					var j = chunk.GetTextureJob();
@@ -180,13 +182,14 @@ namespace Scripts
 
 		private void RunWorldPhysics()
 		{
-			//do physics step on world.
-			if (!_physics.Running)
+			if (Input.GetKey(KeyCode.Q))
 			{
+				_forceAllChunksPhysicsUpdate = true;
 			}
-
-			_physics.StepPhysicsAll();
+			
+			_physics.StepPhysicsAll(_forceAllChunksPhysicsUpdate);
 			_entityManager.LemmingsTick();
+			_forceAllChunksPhysicsUpdate = false;
 		}
 
 		private void LateUpdate()
