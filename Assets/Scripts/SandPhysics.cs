@@ -23,8 +23,12 @@ namespace Scripts
 		private NativeArray<JobHandle> _jobs;
 		private Stopwatch _stopwatch;
 		private NativeBitArray UpdatedThisTick;
+
+		public long LastTickTime => _lastTickTime;
+		private long _lastTickTime;
 		public SandPhysics(FallingSand world)
 		{
+			_stopwatch = new Stopwatch();
 			World = world;
 			_jobs = new NativeArray<JobHandle>(world.Chunks.Count, Allocator.Persistent);
 			//updated.
@@ -33,7 +37,7 @@ namespace Scripts
 
 		public void StepPhysicsAll(bool tickAll = false)
 		{
-			_stopwatch = Stopwatch.StartNew();
+			_stopwatch.Restart();
 			_running = true;
 			//reset all update data, new tick!
 			UpdatedThisTick.Clear();
@@ -115,7 +119,7 @@ namespace Scripts
 				_jobs[i].Complete();
 			}
 			_stopwatch.Stop();
-			//UnityEngine.Debug.Log($"Physics Tick in {_stopwatch.ElapsedMilliseconds}ms");
+			_lastTickTime = _stopwatch.ElapsedMilliseconds;
 
 			//we have to loop through all of them (or all the ones where updated is true, at least.)
 			foreach (var chunk in World.Chunks.Values)
@@ -211,9 +215,8 @@ namespace Scripts
 			//now...
 			if (WorldPixels[next] == testPixel)
 			{
+				
 				Updated.Set(next,true);
-				//not neccesary, because a for loop will never check i twice.... EXCEPT moving OUT of the frame.
-				//there might be some optimization where we only call the .Set function on that edge case?
 				Updated.Set(index,true);
 				//swap
 				WorldPixels[next] = WorldPixels[index];

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using Unity.Collections;
 using Unity.Jobs;
@@ -34,29 +35,35 @@ namespace Scripts
 		private int _brushIndex;
 		private int _brushSize;
 
+		private Stopwatch _stopwatch;
+		public long LastUpdateTime => _stopwatch.ElapsedMilliseconds;
 		public bool TintSleepingChunks = false;
-
+		private Label _label;
+		
 		//run physics
 		private SandPhysics _physics;
 		private EntityManager _entityManager;
 		//render the output.
 		private VisualElement _renderContainer;
-
 		private bool _forceAllChunksPhysicsUpdate;
 		private void Awake()
 		{
-			var doc = GetComponent<UIDocument>();
-			_renderContainer = doc.rootVisualElement;
 			_forceAllChunksPhysicsUpdate = true;
+			_stopwatch = new Stopwatch();
+			_chunks = new Dictionary<int2, Chunk>();
+			_lemmings = new NativeList<Lemming>(Allocator.Persistent);
+			_pixels = new NativeArray<Pixel>(_chunksWide * pixelChunkSize * _chunksTall * pixelChunkSize,
+				Allocator.Persistent);
+			_width = _chunksWide * pixelChunkSize;
+			_height = _chunksTall * pixelChunkSize;
 		}
 
 		private void Start()
 		{
-			_chunks = new Dictionary<int2, Chunk>();
-			_lemmings = new NativeList<Lemming>(Allocator.Persistent);
-			_pixels = new NativeArray<Pixel>(_chunksWide * pixelChunkSize * _chunksTall * pixelChunkSize, Allocator.Persistent);
-			_width = _chunksWide * pixelChunkSize;
-			_height = _chunksTall * pixelChunkSize;
+			var doc = GetComponent<UIDocument>();
+			_renderContainer = doc.rootVisualElement.Q<ScrollView>().contentContainer;
+			_label = doc.rootVisualElement.Q<Label>("FPS");
+		
 			for (int x = 0; x < _chunksWide; x++)
 			{
 				for (int y = 0; y < _chunksTall; y++)
@@ -93,6 +100,7 @@ namespace Scripts
 
 		private void Update()
 		{
+			_stopwatch.Restart();
 			//move to lateUpdate or Fixed, or whatever we want the frequency to be. 'as fast as possible' is nice for testing FPS tho.
 			RunWorldPhysics();
 			
@@ -165,6 +173,8 @@ namespace Scripts
 			{
 				chunk.AfterTextureJob();
 			}
+			_stopwatch.Stop();
+			_label.text = $"{_stopwatch.ElapsedMilliseconds.ToString()}ms - {_stopwatch.ElapsedTicks} ticks";
 		}
 
 		private void SetPixel(int i, Pixel pixel)

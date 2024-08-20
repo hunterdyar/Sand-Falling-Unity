@@ -405,7 +405,7 @@ MonoBehaviour:
   _chunksWide: 16
   _chunksTall: 9
   pixelChunkSize: 120
-  TintSleepingChunks: 1
+  TintSleepingChunks: 0
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
