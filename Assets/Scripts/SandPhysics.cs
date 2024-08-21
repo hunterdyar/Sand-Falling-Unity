@@ -182,17 +182,20 @@ namespace Scripts
 					int index = (WorldWidth*(ChunkOffsetY+y)) + ChunkOffsetX+x;
 					if (Updated.TestNone(index))
 					{
-						if (WorldPixels[index] == Pixel.Sand)
+						switch (WorldPixels[index])
 						{
-							if (SwapIfMatch(index, x, y, 0, 1, Pixel.Empty)) continue;
-							if (SwapIfMatch(index, x, y, 0, 1, Pixel.Water)) continue;
-							if (SwapIfMatch(index, x, y, flop?-1:1, 1,Pixel.Empty)) continue;
-							if (SwapIfMatch(index, x, y, flop?1:-1, 1,Pixel.Empty)) continue;
-						}else if (WorldPixels[index] == Pixel.Water) // && Updated.TestNone(i)
-						{
-							if (SwapIfMatch(index, x, y, 0, 1,Pixel.Empty)) continue;
-							if (SwapIfMatch(index, x, y, flop ? -1 : 1, 0,Pixel.Empty)) continue;
-							if (SwapIfMatch(index, x, y, flop ? 1 : -1, 0,Pixel.Empty)) continue;
+							case Pixel.Sand:
+								if (SwapIfMatch(index, x, y, 0, 1, Pixel.Empty)) continue;
+								if (SwapIfMatch(index, x, y, 0, 1, Pixel.Water)) continue;
+								if (SwapIfMatch(index, x, y, flop ? -1 : 1, 1, Pixel.Empty)) continue;
+								if (SwapIfMatch(index, x, y, flop ? 1 : -1, 1, Pixel.Empty)) continue;
+								continue;
+							case Pixel.Water:
+								if (SwapIfMatch(index, x, y, 0, 1, Pixel.Empty)) continue;
+								//check x spaces to to the right until not empty or last.
+								if (SwapIfMatch(index, x, y, flop ? -1 : 1, 0, Pixel.Empty)) continue;
+								if (SwapIfMatch(index, x, y, flop ? 1 : -1, 0, Pixel.Empty)) continue;
+								continue;
 						}
 					}
 				}
