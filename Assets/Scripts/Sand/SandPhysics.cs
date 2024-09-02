@@ -151,12 +151,12 @@ namespace Scripts
 	[BurstCompile]
 	public struct SandPhysicsJob : IJob
 	{
-		//moine
 		[NativeDisableContainerSafetyRestriction, NativeDisableParallelForRestriction]
 		public NativeBitArray Updated;
 
 		[NativeDisableContainerSafetyRestriction,NativeDisableParallelForRestriction]
 		public NativeArray<Pixel> WorldPixels;
+		
 		public int ChunkOffsetX;
 		public int ChunkOffsetY;
 
@@ -218,7 +218,6 @@ namespace Scripts
 			//now...
 			if (WorldPixels[next] == testPixel)
 			{
-				
 				Updated.Set(next,true);
 				Updated.Set(index,true);
 				//swap
